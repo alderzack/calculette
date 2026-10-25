@@ -54,16 +54,10 @@
     padding: 0 calc(var(--w) * 0.02) calc(var(--w) * 0.035);
     min-height: 0; overflow: hidden;
   }
-  .expr {
-    color: var(--expr); font-weight: 400; white-space: nowrap;
-    font-size: calc(var(--w) * 0.072); line-height: 1.25; min-height: 1.25em;
-    max-width: 100%; overflow: hidden; text-overflow: clip; direction: ltr;
-  }
-  .main {
-    font-weight: 300; white-space: nowrap; line-height: 1.08;
-    font-size: calc(var(--w) * 0.225); letter-spacing: -0.01em;
-    max-width: 100%; transform-origin: right bottom;
-  }
+  .line { display: flex; justify-content: flex-end; width: 100%; overflow: hidden; white-space: nowrap; }
+  .line > span { flex: 0 0 auto; }
+  .expr { color: var(--expr); font-weight: 400; font-size: calc(var(--w) * 0.072); line-height: 1.25; min-height: 1.25em; }
+  .main { font-weight: 300; line-height: 1.12; font-size: calc(var(--w) * 0.225); letter-spacing: -0.01em; }
   .keys {
     display: grid;
     grid-template-columns: repeat(4, var(--key));
@@ -99,8 +93,8 @@
     </svg>
   </div>
   <div class="screen" id="screen">
-    <div class="expr" id="expr"></div>
-    <div class="main" id="main">0</div>
+    <div class="line expr" id="exprBox"><span id="expr"></span></div>
+    <div class="line main" id="mainBox"><span id="main">0</span></div>
   </div>
   <div class="keys" id="keys">
     <div class="k f" data-k="back" aria-label="Supprimer">
@@ -442,16 +436,27 @@
     const f = forcedValue();
     clearTimeout(peekTimer);
     elExpr.textContent = f === null ? "–" : fmtVal(f) + (forcedUsed ? " ·" : "");
+    fit();
     peekTimer = setTimeout(render, 1500);
   }
 
   /* ---------- Affichage ---------- */
-  function fit() {
-    elMain.style.transform = "";
-    const avail = elScreen.clientWidth - 4;
-    const w = elMain.scrollWidth;
-    if (w > avail) elMain.style.transform = "scale(" + Math.max(0.35, avail / w) + ")";
+  // Comme sur iPhone : le texte rétrécit pour tenir sur la largeur ; au-delà du minimum, on voit la fin.
+  const elMainBox = document.getElementById("mainBox");
+  const elExprBox = document.getElementById("exprBox");
+  function fitOne(box, span, ratio, minRatio) {
+    const W = Math.min(window.innerWidth, 440);
+    const base = W * ratio;
+    box.style.fontSize = base + "px";
+    const avail = box.clientWidth;
+    const w = span.getBoundingClientRect().width;
+    if (w > avail && w > 0) box.style.fontSize = Math.max(base * minRatio, base * (avail / w) * 0.97) + "px";
   }
+  function fit() {
+    fitOne(elMainBox, elMain, 0.225, 0.42);
+    fitOne(elExprBox, elExpr, 0.072, 0.6);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
   function render() {
     clearTimeout(peekTimer);
     if (error) { elExpr.textContent = exprAfter; elMain.textContent = ERR; }
