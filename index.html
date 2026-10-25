@@ -12,18 +12,20 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Calculette</title>
 <style>
+  /* Mesures relevées sur la capture officielle Apple (Calculette iOS) */
   :root {
     --w: min(100vw, 440px);
-    --pad: calc(var(--w) * 0.042);
-    --gap: calc(var(--w) * 0.0385);
+    --pad: calc(var(--w) * 0.064);
+    --gap: calc(var(--w) * 0.0207);
     --key: calc((var(--w) - 2 * var(--pad) - 3 * var(--gap)) / 4);
-    --digit: #333335;
-    --digit-on: #737375;
-    --func: #5c5c5f;
-    --func-on: #8e8e91;
-    --op: #ff9f0a;
-    --op-on: #ffc673;
-    --expr: #8e8e93;
+    --digit: #353535;
+    --digit-on: #6f6f6f;
+    --func: #616161;
+    --func-on: #9b9b9b;
+    --op: #ff9200;
+    --op-on: #ffc27a;
+    --expr: #9a9aa0;
+    --chip: #202020;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -42,22 +44,24 @@
     display: flex; flex-direction: column; justify-content: flex-end;
     padding: 0 var(--pad) calc(max(env(safe-area-inset-bottom), 14px) + calc(var(--w) * 0.03));
   }
-  .top {
-    position: absolute; left: var(--pad); top: calc(env(safe-area-inset-top) + 10px);
-    width: 38px; height: 38px; border-radius: 50%;
-    display: grid; place-items: center;
-    background: rgba(255,255,255,0.08);
+  .chip {
+    position: absolute; top: calc(env(safe-area-inset-top) + 12px);
+    width: calc(var(--w) * 0.105); height: calc(var(--w) * 0.105); border-radius: 50%;
+    display: grid; place-items: center; background: var(--chip);
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.12);
   }
-  .top svg { width: 19px; height: 19px; }
+  .chip.l { left: var(--pad); }
+  .chip.r { right: var(--pad); }
+  .chip svg { width: 48%; height: 48%; }
   .screen {
     flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
-    padding: 0 calc(var(--w) * 0.02) calc(var(--w) * 0.035);
+    padding: 0 0 calc(var(--w) * 0.035);
     min-height: 0; overflow: hidden;
   }
   .line { display: flex; justify-content: flex-end; width: 100%; overflow: hidden; white-space: nowrap; }
   .line > span { flex: 0 0 auto; }
-  .expr { color: var(--expr); font-weight: 400; font-size: calc(var(--w) * 0.072); line-height: 1.25; min-height: 1.25em; }
-  .main { font-weight: 300; line-height: 1.12; font-size: calc(var(--w) * 0.225); letter-spacing: -0.01em; }
+  .expr { color: var(--expr); font-weight: 400; font-size: calc(var(--w) * 0.057); line-height: 1.2; min-height: 1.2em; margin-bottom: calc(var(--w) * 0.012); }
+  .main { font-weight: 350; line-height: 1.05; font-size: calc(var(--w) * 0.156); letter-spacing: -0.005em; }
   .keys {
     display: grid;
     grid-template-columns: repeat(4, var(--key));
@@ -66,68 +70,54 @@
   }
   .k {
     border-radius: 50%; display: grid; place-items: center;
-    font-size: calc(var(--key) * 0.44); font-weight: 400; color: #fff;
+    font-size: calc(var(--key) * 0.41); font-weight: 400; color: #fff;
     background: var(--digit);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 1px rgba(0,0,0,0.25);
-    transition: background-color 0.35s ease-out;
-    position: relative;
+    box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.14), inset 0 0 0 0.5px rgba(255,255,255,0.05);
+    transition: background-color 0.4s ease-out;
   }
   .k.f { background: var(--func); }
-  .k.o { background: var(--op); font-size: calc(var(--key) * 0.5); font-weight: 500; }
+  .k.o { background: var(--op); }
   .k.down { transition: none; background: var(--digit-on); }
   .k.f.down { background: var(--func-on); }
   .k.o.down { background: var(--op-on); }
-  .k svg { width: 42%; height: 42%; overflow: visible; }
-  .k .t { transform: translateY(-0.04em); display: block; }
-  .k.o .t { transform: translateY(-0.06em); }
-  .k[data-k="ac"] .t { font-size: 0.86em; font-weight: 500; }
-  .k[data-k="pct"] .t { font-size: 0.9em; font-weight: 500; }
+  .k svg { width: 40%; height: 40%; overflow: visible; }
+  .k[data-k="back"] svg { width: 46%; height: 46%; }
+  .k .t { display: block; line-height: 1; transform: translateY(-0.02em); }
 </style>
 </head>
 <body>
 <div class="app" id="app">
-  <div class="top" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2.2" stroke-linecap="round">
-      <circle cx="4.5" cy="6" r="0.6" fill="#ff9f0a"/><circle cx="4.5" cy="12" r="0.6" fill="#ff9f0a"/><circle cx="4.5" cy="18" r="0.6" fill="#ff9f0a"/>
-      <path d="M9 6h11M9 12h11M9 18h11"/>
-    </svg>
+  <div class="chip l" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.5 2.5"/></svg>
+  </div>
+  <div class="chip r" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="#fff"><path d="M7 2.5h10A2.5 2.5 0 0 1 19.5 5v14a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 19V5A2.5 2.5 0 0 1 7 2.5zm.6 2.2a.6.6 0 0 0-.6.6v3.4c0 .3.3.6.6.6h8.8c.3 0 .6-.3.6-.6V5.3a.6.6 0 0 0-.6-.6zM8 11.2a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm4 0a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm4 0a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zM8 14.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm4 0a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2zm4 0a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/></svg>
   </div>
   <div class="screen" id="screen">
     <div class="line expr" id="exprBox"><span id="expr"></span></div>
     <div class="line main" id="mainBox"><span id="main">0</span></div>
   </div>
   <div class="keys" id="keys">
-    <div class="k f" data-k="back" aria-label="Supprimer">
-      <svg viewBox="0 0 34 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round">
-        <path d="M11 2.5h18a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3H11L2.5 12z"/>
-        <path d="M15.5 8l8 8M23.5 8l-8 8"/>
-      </svg>
-    </div>
+    <div class="k f" data-k="back" aria-label="Supprimer"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 5.5H19a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5H8.2L2.5 12z"/><path d="M11.2 9.2l5.6 5.6M16.8 9.2l-5.6 5.6"/></svg></div>
     <div class="k f" data-k="ac"><span class="t" id="acLabel">AC</span></div>
     <div class="k f" data-k="pct"><span class="t">%</span></div>
-    <div class="k o" data-k="/"><span class="t">÷</span></div>
+    <div class="k o" data-k="/"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12h19"/><circle cx="12" cy="5.6" r="1.85" fill="#fff" stroke="none"/><circle cx="12" cy="18.4" r="1.85" fill="#fff" stroke="none"/></svg></div>
     <div class="k" data-k="7"><span class="t">7</span></div>
     <div class="k" data-k="8"><span class="t">8</span></div>
     <div class="k" data-k="9"><span class="t">9</span></div>
-    <div class="k o" data-k="*"><span class="t">×</span></div>
+    <div class="k o" data-k="*"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 5.3l13.4 13.4M18.7 5.3L5.3 18.7"/></svg></div>
     <div class="k" data-k="4"><span class="t">4</span></div>
     <div class="k" data-k="5"><span class="t">5</span></div>
     <div class="k" data-k="6"><span class="t">6</span></div>
-    <div class="k o" data-k="-"><span class="t">−</span></div>
+    <div class="k o" data-k="-"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12h19"/></svg></div>
     <div class="k" data-k="1"><span class="t">1</span></div>
     <div class="k" data-k="2"><span class="t">2</span></div>
     <div class="k" data-k="3"><span class="t">3</span></div>
-    <div class="k o" data-k="+"><span class="t">+</span></div>
-    <div class="k" data-k="neg" aria-label="Plus ou moins">
-      <svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
-        <path d="M9.5 4.5v10M4.5 9.5h10"/>
-        <path d="M22 5L10 27"/>
-        <path d="M18 22.5h10"/>
-      </svg>
-    </div>
+    <div class="k o" data-k="+"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12h19M12 2.5v19"/></svg></div>
+    <div class="k" data-k="neg" aria-label="Plus ou moins"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.3 3v8.6M3 7.3h8.6"/><path d="M16.4 3.4L7.6 20.6"/><path d="M13.2 17.1h8.4"/></svg></div>
     <div class="k" data-k="0"><span class="t">0</span></div>
     <div class="k" data-k="dot"><span class="t" id="dotLabel">,</span></div>
-    <div class="k o" data-k="="><span class="t">=</span></div>
+    <div class="k o" data-k="="><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.6h18M3 15.4h18"/></svg></div>
   </div>
 </div>
 
@@ -453,8 +443,8 @@
     if (w > avail && w > 0) box.style.fontSize = Math.max(base * minRatio, base * (avail / w) * 0.97) + "px";
   }
   function fit() {
-    fitOne(elMainBox, elMain, 0.225, 0.42);
-    fitOne(elExprBox, elExpr, 0.072, 0.6);
+    fitOne(elMainBox, elMain, 0.156, 0.55);
+    fitOne(elExprBox, elExpr, 0.057, 0.75);
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
   function render() {
