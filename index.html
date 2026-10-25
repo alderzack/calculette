@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex, nofollow">
+<title>Calculette</title>
+<style>
+  :root {
+    --w: min(100vw, 440px);
+    --pad: calc(var(--w) * 0.042);
+    --gap: calc(var(--w) * 0.0385);
+    --key: calc((var(--w) - 2 * var(--pad) - 3 * var(--gap)) / 4);
+    --digit: #333335;
+    --digit-on: #737375;
+    --func: #5c5c5f;
+    --func-on: #8e8e91;
+    --op: #ff9f0a;
+    --op-on: #ffc673;
+    --expr: #8e8e93;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; background: #000; color: #fff;
+    overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; touch-action: none;
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { position: fixed; inset: 0; }
+  .app {
+    position: absolute; inset: 0;
+    width: var(--w); margin: 0 auto;
+    height: 100dvh;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 0 var(--pad) calc(max(env(safe-area-inset-bottom), 14px) + calc(var(--w) * 0.03));
+  }
+  .top {
+    position: absolute; left: var(--pad); top: calc(env(safe-area-inset-top) + 10px);
+    width: 38px; height: 38px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.08);
+  }
+  .top svg { width: 19px; height: 19px; }
+  .screen {
+    flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
+    padding: 0 calc(var(--w) * 0.02) calc(var(--w) * 0.035);
+    min-height: 0; overflow: hidden;
+  }
+  .expr {
+    color: var(--expr); font-weight: 400; white-space: nowrap;
+    font-size: calc(var(--w) * 0.072); line-height: 1.25; min-height: 1.25em;
+    max-width: 100%; overflow: hidden; text-overflow: clip; direction: ltr;
+  }
+  .main {
+    font-weight: 300; white-space: nowrap; line-height: 1.08;
+    font-size: calc(var(--w) * 0.225); letter-spacing: -0.01em;
+    max-width: 100%; transform-origin: right bottom;
+  }
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(4, var(--key));
+    grid-auto-rows: var(--key);
+    gap: var(--gap);
+  }
+  .k {
+    border-radius: 50%; display: grid; place-items: center;
+    font-size: calc(var(--key) * 0.44); font-weight: 400; color: #fff;
+    background: var(--digit);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 1px rgba(0,0,0,0.25);
+    transition: background-color 0.35s ease-out;
+    position: relative;
+  }
+  .k.f { background: var(--func); }
+  .k.o { background: var(--op); font-size: calc(var(--key) * 0.5); font-weight: 500; }
+  .k.down { transition: none; background: var(--digit-on); }
+  .k.f.down { background: var(--func-on); }
+  .k.o.down { background: var(--op-on); }
+  .k svg { width: 42%; height: 42%; overflow: visible; }
+  .k .t { transform: translateY(-0.04em); display: block; }
+  .k.o .t { transform: translateY(-0.06em); }
+  .k[data-k="ac"] .t { font-size: 0.86em; font-weight: 500; }
+  .k[data-k="pct"] .t { font-size: 0.9em; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="top" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2.2" stroke-linecap="round">
+      <circle cx="4.5" cy="6" r="0.6" fill="#ff9f0a"/><circle cx="4.5" cy="12" r="0.6" fill="#ff9f0a"/><circle cx="4.5" cy="18" r="0.6" fill="#ff9f0a"/>
+      <path d="M9 6h11M9 12h11M9 18h11"/>
+    </svg>
+  </div>
+  <div class="screen" id="screen">
+    <div class="expr" id="expr"></div>
+    <div class="main" id="main">0</div>
+  </div>
+  <div class="keys" id="keys">
+    <div class="k f" data-k="back" aria-label="Supprimer">
+      <svg viewBox="0 0 34 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M11 2.5h18a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3H11L2.5 12z"/>
+        <path d="M15.5 8l8 8M23.5 8l-8 8"/>
+      </svg>
+    </div>
+    <div class="k f" data-k="ac"><span class="t" id="acLabel">AC</span></div>
+    <div class="k f" data-k="pct"><span class="t">%</span></div>
+    <div class="k o" data-k="/"><span class="t">÷</span></div>
+    <div class="k" data-k="7"><span class="t">7</span></div>
+    <div class="k" data-k="8"><span class="t">8</span></div>
+    <div class="k" data-k="9"><span class="t">9</span></div>
+    <div class="k o" data-k="*"><span class="t">×</span></div>
+    <div class="k" data-k="4"><span class="t">4</span></div>
+    <div class="k" data-k="5"><span class="t">5</span></div>
+    <div class="k" data-k="6"><span class="t">6</span></div>
+    <div class="k o" data-k="-"><span class="t">−</span></div>
+    <div class="k" data-k="1"><span class="t">1</span></div>
+    <div class="k" data-k="2"><span class="t">2</span></div>
+    <div class="k" data-k="3"><span class="t">3</span></div>
+    <div class="k o" data-k="+"><span class="t">+</span></div>
+    <div class="k" data-k="neg" aria-label="Plus ou moins">
+      <svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+        <path d="M9.5 4.5v10M4.5 9.5h10"/>
+        <path d="M22 5L10 27"/>
+        <path d="M18 22.5h10"/>
+      </svg>
+    </div>
+    <div class="k" data-k="0"><span class="t">0</span></div>
+    <div class="k" data-k="dot"><span class="t" id="dotLabel">,</span></div>
+    <div class="k o" data-k="="><span class="t">=</span></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------- Réglages ---------- */
+  const API = "/api/force";
+  const MAX_DIGITS = 9;
+  const LONG_PRESS_MS = 650;
+  const STORE_KEY = "calc.f";
+
+  /* ---------- Langue / format du téléphone ---------- */
+  const LOC = (navigator.languages && navigator.languages[0]) || navigator.language || "fr-CH";
+  let DEC = ".", GROUP = ",";
+  try {
+    const parts = new Intl.NumberFormat(LOC).formatToParts(12345.6);
+    DEC = (parts.find(p => p.type === "decimal") || {}).value || ".";
+    GROUP = (parts.find(p => p.type === "group") || {}).value || "";
+  } catch (e) {}
+  const ERR = { fr: "Erreur", de: "Fehler", it: "Errore", es: "Error", pt: "Erro", nl: "Fout" }[LOC.slice(0, 2)] || "Error";
+  document.getElementById("dotLabel").textContent = DEC;
+
+  /* ---------- État ---------- */
+  let tokens = [];            // {t:'n', s:'12.5', neg:false, pct:false, val?:number} | {t:'o', v:'+'}
+  let done = false;           // un résultat est affiché
+  let resultVal = 0;
+  let exprAfter = "";         // petite ligne grise après « = »
+  let lastOp = null;          // pour « = » répété
+  let error = false;
+  let forcedUsed = false;
+  let remoteForced = null;
+  let localForced = null;
+  try { localForced = sessionStorage.getItem(STORE_KEY); } catch (e) {}
+  let peekTimer = null;
+
+  const elMain = document.getElementById("main");
+  const elExpr = document.getElementById("expr");
+  const elAC = document.getElementById("acLabel");
+  const elScreen = document.getElementById("screen");
+
+  /* ---------- Nombres ---------- */
+  function clean(v) {
+    if (!isFinite(v)) return v;
+    const r = Number(v.toPrecision(12));
+    return Object.is(r, -0) ? 0 : r;
+  }
+  function groupInt(intStr) {
+    let out = "";
+    for (let i = 0; i < intStr.length; i++) {
+      if (i > 0 && (intStr.length - i) % 3 === 0) out += GROUP;
+      out += intStr[i];
+    }
+    return out;
+  }
+  function fmtTyped(s) {
+    const [i, d] = s.split(".");
+    return groupInt(i || "0") + (d !== undefined ? DEC + d : "");
+  }
+  function fmtVal(v) {
+    if (!isFinite(v)) return ERR;
+    v = clean(v);
+    if (v === 0) return "0";
+    const a = Math.abs(v);
+    const sign = v < 0 ? "−" : "";
+    if (a >= 1e9 || a < 1e-8) {
+      let [m, e] = a.toExponential(6).split("e");
+      m = m.replace(/\.?0+$/, "");
+      return sign + m.replace(".", DEC) + "e" + Number(e);
+    }
+    const intDigits = Math.max(1, Math.floor(Math.log10(a)) + 1);
+    const decimals = Math.max(0, MAX_DIGITS - intDigits);
+    let s = a.toFixed(decimals);
+    if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return sign + fmtTyped(s);
+  }
+  function tokVal(tok) {
+    const base = tok.val !== undefined ? tok.val : parseFloat(tok.s || "0");
+    return tok.neg ? -base : base;
+  }
+  function tokText(tok, idx) {
+    let txt = tok.val !== undefined ? fmtVal(Math.abs(tok.val)) : fmtTyped(tok.s || "0");
+    const isNeg = tok.neg !== (tok.val !== undefined && tok.val < 0);
+    if (isNeg) txt = idx > 0 ? "(−" + txt + ")" : "−" + txt;
+    if (tok.pct) txt += "%";
+    return txt;
+  }
+  const SYM = { "+": "+", "-": "−", "*": "×", "/": "÷" };
+  function exprText(list) {
+    return list.map((t, i) => (t.t === "o" ? SYM[t.v] : tokText(t, i))).join("");
+  }
+
+  /* ---------- Calcul (priorité des opérations) ---------- */
+  function apply(a, op, b) {
+    switch (op) {
+      case "+": return a + b;
+      case "-": return a - b;
+      case "*": return a * b;
+      case "/": return b === 0 ? NaN : a / b;
+    }
+  }
+  function evaluate(list) {
+    const vals = [], ops = [];
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i];
+      if (t.t === "o") { ops.push(t.v); continue; }
+      let v = tokVal(t);
+      if (t.pct) {
+        const prev = list[i - 1];
+        if (prev && (prev.v === "+" || prev.v === "-") && i >= 2) {
+          v = evaluate(list.slice(0, i - 1)) * v / 100;
+        } else v = v / 100;
+      }
+      vals.push(v);
+    }
+    // × et ÷ d'abord
+    const v2 = [vals[0]], o2 = [];
+    for (let i = 0; i < ops.length; i++) {
+      if (ops[i] === "*" || ops[i] === "/") v2[v2.length - 1] = apply(v2[v2.length - 1], ops[i], vals[i + 1]);
+      else { o2.push(ops[i]); v2.push(vals[i + 1]); }
+    }
+    let r = v2[0];
+    for (let i = 0; i < o2.length; i++) r = apply(r, o2[i], v2[i + 1]);
+    return clean(r);
+  }
+
+  /* ---------- Forçage ---------- */
+  function forcedValue() {
+    const f = localForced !== null && localForced !== "" ? localForced : remoteForced;
+    if (f === null || f === undefined || f === "") return null;
+    const n = Number(String(f).replace(",", "."));
+    return isFinite(n) ? n : null;
+  }
+  function clipText(n) {
+    let s = String(clean(n));
+    if (s.includes("e")) s = n.toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: 8 });
+    return s.replace(".", DEC);
+  }
+  function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+        return;
+      }
+    } catch (e) {}
+    legacyCopy(text);
+  }
+  function legacyCopy(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:-100px;left:0;opacity:0;font-size:16px";
+      document.body.appendChild(ta);
+      ta.select(); ta.setSelectionRange(0, text.length);
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (e) {}
+  }
+  let fetching = false;
+  function refreshRemote() {
+    if (fetching) return;
+    fetching = true;
+    fetch(API + "?t=" + Date.now(), { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        if (!j) return;
+        const n = j.n === undefined ? null : j.n;
+        if (String(n) !== String(remoteForced)) forcedUsed = false;
+        remoteForced = n;
+      })
+      .catch(() => {})
+      .finally(() => { fetching = false; });
+  }
+
+  /* ---------- Actions ---------- */
+  function cur() {
+    const t = tokens[tokens.length - 1];
+    return t && t.t === "n" ? t : null;
+  }
+  function startFromResult() {
+    tokens = [{ t: "n", s: "", val: Math.abs(resultVal), neg: resultVal < 0, pct: false }];
+    done = false;
+  }
+  function resetAll() {
+    tokens = []; done = false; resultVal = 0; exprAfter = ""; lastOp = null; error = false;
+  }
+  function digitCount(s) { return s.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "").length; }
+
+  function pressDigit(d) {
+    if (error) resetAll();
+    if (done) { tokens = []; done = false; }
+    let c = cur();
+    if (c && (c.pct || c.val !== undefined)) return;
+    if (!c) {
+      c = { t: "n", s: "", neg: false, pct: false };
+      tokens.push(c);
+    }
+    if (d === ".") {
+      if (c.s.includes(".")) return;
+      c.s = (c.s === "" ? "0" : c.s) + ".";
+      return;
+    }
+    if (digitCount(c.s) >= MAX_DIGITS) return;
+    if (c.s === "0") c.s = d;
+    else c.s += d;
+  }
+  function pressOp(o) {
+    if (error) return;
+    if (done) startFromResult();
+    if (tokens.length === 0) tokens.push({ t: "n", s: "0", neg: false, pct: false });
+    const last = tokens[tokens.length - 1];
+    if (last.t === "o") last.v = o;
+    else {
+      if (last.s && last.s.endsWith(".")) last.s = last.s.slice(0, -1);
+      tokens.push({ t: "o", v: o });
+    }
+    if (o === "-") refreshRemote();
+  }
+  function pressEquals() {
+    if (error) return;
+    if (done) {
+      if (!lastOp) return;
+      const before = resultVal;
+      resultVal = clean(apply(before, lastOp.op, lastOp.val));
+      exprAfter = fmtVal(before) + SYM[lastOp.op] + fmtVal(lastOp.val);
+      if (!isFinite(resultVal)) error = true;
+      return;
+    }
+    if (tokens.length === 0) return;
+    if (tokens[tokens.length - 1].t === "o") tokens.pop();
+    if (tokens.length === 0) return;
+    const hasMinus = tokens.some(t => t.t === "o" && t.v === "-");
+    let val = evaluate(tokens);
+    // mémorise la dernière opération pour « = » répété
+    if (tokens.length >= 3) {
+      const lo = tokens[tokens.length - 2], ln = tokens[tokens.length - 1];
+      lastOp = { op: lo.v, val: tokVal(ln) };
+    } else lastOp = null;
+
+    const f = forcedValue();
+    if (hasMinus && !forcedUsed && f !== null) {
+      val = f;
+      forcedUsed = true;
+      copyToClipboard(clipText(f));
+    }
+    exprAfter = exprText(tokens);
+    resultVal = val;
+    done = true;
+    if (!isFinite(val)) error = true;
+  }
+  function acIsC() { return !done && !error && !!cur(); }
+  function pressAC() {
+    if (acIsC()) { tokens.pop(); return; }
+    resetAll();
+  }
+  function pressBack() {
+    if (error) { resetAll(); return; }
+    if (done) return;
+    const last = tokens[tokens.length - 1];
+    if (!last) return;
+    if (last.t === "o") { tokens.pop(); return; }
+    if (last.pct) { last.pct = false; return; }
+    if (last.val !== undefined) { tokens.pop(); return; }
+    last.s = last.s.slice(0, -1);
+    if (last.s === "" || last.s === "-") tokens.pop();
+  }
+  function pressPct() {
+    if (error) return;
+    if (done) startFromResult();
+    const c = cur();
+    if (!c || c.pct) return;
+    if (c.s && c.s.endsWith(".")) c.s = c.s.slice(0, -1);
+    c.pct = true;
+  }
+  function pressNeg() {
+    if (error) return;
+    if (done) { resultVal = -resultVal; if (resultVal === 0) resultVal = 0; return; }
+    let c = cur();
+    if (!c) { c = { t: "n", s: "0", neg: false, pct: false }; tokens.push(c); }
+    c.neg = !c.neg;
+  }
+
+  /* ---------- Gestes secrets ---------- */
+  // Appui long sur « % » : enregistre le nombre tapé comme nombre forcé et remet à 0.
+  // Sans nombre tapé : efface le nombre forcé local (on revient au réglage à distance).
+  function secretArm() {
+    const c = !done ? cur() : null;
+    if (c && (c.s || c.val !== undefined)) {
+      const v = c.val !== undefined ? c.val : parseFloat(c.s);
+      const n = c.neg ? -v : v;
+      localForced = String(n);
+    } else {
+      localForced = null;
+    }
+    try {
+      if (localForced === null) sessionStorage.removeItem(STORE_KEY);
+      else sessionStorage.setItem(STORE_KEY, localForced);
+    } catch (e) {}
+    forcedUsed = false;
+    resetAll();
+    render();
+  }
+  // Appui long sur « = » : affiche discrètement le nombre armé pendant 1,5 s (vérification).
+  function secretPeek() {
+    const f = forcedValue();
+    clearTimeout(peekTimer);
+    elExpr.textContent = f === null ? "–" : fmtVal(f) + (forcedUsed ? " ·" : "");
+    peekTimer = setTimeout(render, 1500);
+  }
+
+  /* ---------- Affichage ---------- */
+  function fit() {
+    elMain.style.transform = "";
+    const avail = elScreen.clientWidth - 4;
+    const w = elMain.scrollWidth;
+    if (w > avail) elMain.style.transform = "scale(" + Math.max(0.35, avail / w) + ")";
+  }
+  function render() {
+    clearTimeout(peekTimer);
+    if (error) { elExpr.textContent = exprAfter; elMain.textContent = ERR; }
+    else if (done) { elExpr.textContent = exprAfter; elMain.textContent = fmtVal(resultVal); }
+    else { elExpr.textContent = ""; elMain.textContent = tokens.length ? exprText(tokens) : "0"; }
+    elAC.textContent = acIsC() ? "C" : "AC";
+    fit();
+  }
+
+  function act(k) {
+    if (/^[0-9]$/.test(k)) pressDigit(k);
+    else if (k === "dot") pressDigit(".");
+    else if (k === "+" || k === "-" || k === "*" || k === "/") pressOp(k);
+    else if (k === "=") pressEquals();
+    else if (k === "ac") pressAC();
+    else if (k === "back") pressBack();
+    else if (k === "pct") pressPct();
+    else if (k === "neg") pressNeg();
+    render();
+  }
+
+  /* ---------- Toucher ---------- */
+  const LONG = { pct: secretArm, "=": secretPeek };
+  const active = new Map(); // id -> {el, k, timer, fired}
+
+  function down(id, el) {
+    const k = el.dataset.k;
+    el.classList.add("down");
+    const st = { el, k, fired: false, timer: null };
+    if (LONG[k]) st.timer = setTimeout(() => { st.fired = true; LONG[k](); }, LONG_PRESS_MS);
+    active.set(id, st);
+  }
+  function up(id, x, y, cancel) {
+    const st = active.get(id);
+    if (!st) return;
+    active.delete(id);
+    clearTimeout(st.timer);
+    st.el.classList.remove("down");
+    if (cancel || st.fired) return;
+    const r = st.el.getBoundingClientRect();
+    const m = 24;
+    if (x < r.left - m || x > r.right + m || y < r.top - m || y > r.bottom + m) return;
+    act(st.k);
+  }
+  const keysEl = document.getElementById("keys");
+  let lastTouch = 0;
+  keysEl.addEventListener("touchstart", e => {
+    e.preventDefault();
+    lastTouch = Date.now();
+    for (const t of e.changedTouches) {
+      const el = t.target.closest && t.target.closest(".k");
+      if (el) down("t" + t.identifier, el);
+    }
+  }, { passive: false });
+  keysEl.addEventListener("touchend", e => {
+    e.preventDefault();
+    lastTouch = Date.now();
+    for (const t of e.changedTouches) up("t" + t.identifier, t.clientX, t.clientY, false);
+  }, { passive: false });
+  keysEl.addEventListener("touchcancel", e => {
+    for (const t of e.changedTouches) up("t" + t.identifier, 0, 0, true);
+  });
+  keysEl.addEventListener("mousedown", e => {
+    if (Date.now() - lastTouch < 800) return;
+    const el = e.target.closest(".k");
+    if (el) down("m", el);
+  });
+  window.addEventListener("mouseup", e => {
+    if (Date.now() - lastTouch < 800) return;
+    up("m", e.clientX, e.clientY, false);
+  });
+
+  // Balayage gauche/droite sur l'affichage = effacer le dernier chiffre (comme sur iPhone)
+  let sx = null, sy = null;
+  elScreen.addEventListener("touchstart", e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+  elScreen.addEventListener("touchend", e => {
+    if (sx === null) return;
+    const t = e.changedTouches[0];
+    if (Math.abs(t.clientX - sx) > 40 && Math.abs(t.clientY - sy) < 50) act("back");
+    sx = null;
+  }, { passive: true });
+
+  // Clavier physique (tests sur ordinateur)
+  window.addEventListener("keydown", e => {
+    const map = { Enter: "=", "=": "=", Escape: "ac", Backspace: "back", "%": "pct", ".": "dot", ",": "dot", "x": "*", "X": "*" };
+    const k = /^[0-9+\-*/]$/.test(e.key) ? e.key : map[e.key];
+    if (k) { e.preventDefault(); act(k); }
+  });
+
+  // Empêche zoom / défilement / menu contextuel
+  document.addEventListener("gesturestart", e => e.preventDefault());
+  document.addEventListener("dblclick", e => e.preventDefault());
+  document.addEventListener("contextmenu", e => e.preventDefault());
+  document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshRemote(); });
+  window.addEventListener("resize", fit);
+
+  // Accès pour les tests automatiques
+  window.__calc = { act, state: () => ({ tokens, done, resultVal, forcedUsed, localForced, remoteForced }), secretArm, secretPeek, setRemote: v => { remoteForced = v; forcedUsed = false; } };
+
+  render();
+  refreshRemote();
+})();
+</script>
+</body>
+</html>
